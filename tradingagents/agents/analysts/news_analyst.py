@@ -1,6 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
+from tradingagents.dataflows.config import get_config
 
 
 def create_news_analyst(llm, toolkit):
@@ -22,6 +23,15 @@ def create_news_analyst(llm, toolkit):
             + """ Make sure to append a Makrdown table at the end of the report to organize key points in the report, organized and easy to read."""
         )
 
+        # Get language setting from config
+        config = get_config()
+        output_language = config.get("output_language", "english")
+
+        # Set language instruction based on config
+        language_instruction = ""
+        if output_language == "chinese":
+            language_instruction = " 请用中文回答。"
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
@@ -33,7 +43,7 @@ def create_news_analyst(llm, toolkit):
                     " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. We are looking at the company {ticker}",
+                    "For your reference, the current date is {current_date}. We are looking at the company {ticker}.{language_instruction}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
@@ -43,6 +53,7 @@ def create_news_analyst(llm, toolkit):
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(ticker=ticker)
+        prompt = prompt.partial(language_instruction=language_instruction)
 
         chain = prompt | llm.bind_tools(tools)
         result = chain.invoke(state["messages"])

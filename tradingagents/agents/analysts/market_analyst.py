@@ -1,10 +1,10 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
+from tradingagents.dataflows.config import get_config
 
 
 def create_market_analyst(llm, toolkit):
-
     def market_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
@@ -50,6 +50,15 @@ Volume-Based Indicators:
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
         )
 
+        # Get language setting from config
+        config = get_config()
+        output_language = config.get("output_language", "english")
+
+        # Set language instruction based on config
+        language_instruction = ""
+        if output_language == "chinese":
+            language_instruction = " 请用中文回答。"
+
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
@@ -61,7 +70,7 @@ Volume-Based Indicators:
                     " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. The company we want to look at is {ticker}",
+                    "For your reference, the current date is {current_date}. The company we want to look at is {ticker}.{language_instruction}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
@@ -71,6 +80,7 @@ Volume-Based Indicators:
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(ticker=ticker)
+        prompt = prompt.partial(language_instruction=language_instruction)
 
         chain = prompt | llm.bind_tools(tools)
 
@@ -80,7 +90,7 @@ Volume-Based Indicators:
 
         if len(result.tool_calls) == 0:
             report = result.content
-       
+
         return {
             "messages": [result],
             "market_report": report,

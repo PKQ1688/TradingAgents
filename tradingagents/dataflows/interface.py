@@ -428,7 +428,6 @@ def get_stock_stats_indicators_window(
     look_back_days: Annotated[int, "how many days to look back"],
     online: Annotated[bool, "to fetch data online or offline"],
 ) -> str:
-
     best_ind_params = {
         # Moving Averages
         "close_50_sma": (
@@ -563,7 +562,6 @@ def get_stockstats_indicator(
     ],
     online: Annotated[bool, "to fetch data online or offline"],
 ) -> str:
-
     curr_date = datetime.strptime(curr_date, "%Y-%m-%d")
     curr_date = curr_date.strftime("%Y-%m-%d")
 
@@ -589,40 +587,58 @@ def get_YFin_data_window(
     curr_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
-    # calculate past days
-    date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
-    before = date_obj - relativedelta(days=look_back_days)
-    start_date = before.strftime("%Y-%m-%d")
+    """
+    Retrieve stock price data for a given ticker symbol using yfinance API for a specific window.
+    """
+    try:
+        # calculate past days
+        date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
+        before = date_obj - relativedelta(days=look_back_days)
+        start_date = before.strftime("%Y-%m-%d")
 
-    # read in data
-    data = pd.read_csv(
-        os.path.join(
-            DATA_DIR,
-            f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
+        # Create ticker object
+        ticker = yf.Ticker(symbol.upper())
+
+        # Add one day to curr_date to make it inclusive
+        end_date_inclusive = pd.to_datetime(curr_date) + pd.DateOffset(days=1)
+        end_date_str = end_date_inclusive.strftime("%Y-%m-%d")
+
+        # Fetch historical data for the specified date range
+        data = ticker.history(start=start_date, end=end_date_str)
+
+        # Check if data is empty
+        if data.empty:
+            return f"No data found for symbol '{symbol}' between {start_date} and {curr_date}"
+
+        # Remove timezone info from index for cleaner output
+        if data.index.tz is not None:
+            data.index = data.index.tz_localize(None)
+
+        # Reset index to make Date a column
+        data = data.reset_index()
+
+        # Format the Date column to match expected format
+        data["Date"] = data["Date"].dt.strftime("%Y-%m-%d")
+
+        # Round numerical values to 2 decimal places for cleaner display
+        numeric_columns = ["Open", "High", "Low", "Close", "Adj Close"]
+        for col in numeric_columns:
+            if col in data.columns:
+                data[col] = data[col].round(2)
+
+        # Set pandas display options to show the full DataFrame
+        with pd.option_context(
+            "display.max_rows", None, "display.max_columns", None, "display.width", None
+        ):
+            df_string = data.to_string(index=False)
+
+        return (
+            f"## Raw Market Data for {symbol} from {start_date} to {curr_date}:\n\n"
+            + df_string
         )
-    )
 
-    # Extract just the date part for comparison
-    data["DateOnly"] = data["Date"].str[:10]
-
-    # Filter data between the start and end dates (inclusive)
-    filtered_data = data[
-        (data["DateOnly"] >= start_date) & (data["DateOnly"] <= curr_date)
-    ]
-
-    # Drop the temporary column we created
-    filtered_data = filtered_data.drop("DateOnly", axis=1)
-
-    # Set pandas display options to show the full DataFrame
-    with pd.option_context(
-        "display.max_rows", None, "display.max_columns", None, "display.width", None
-    ):
-        df_string = filtered_data.to_string()
-
-    return (
-        f"## Raw Market Data for {symbol} from {start_date} to {curr_date}:\n\n"
-        + df_string
-    )
+    except Exception as e:
+        return f"Error retrieving data for {symbol}: {str(e)}"
 
 
 def get_YFin_data_online(
@@ -630,7 +646,6 @@ def get_YFin_data_online(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ):
-
     datetime.strptime(start_date, "%Y-%m-%d")
     datetime.strptime(end_date, "%Y-%m-%d")
 
@@ -672,34 +687,57 @@ def get_YFin_data(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
-    # read in data
-    data = pd.read_csv(
-        os.path.join(
-            DATA_DIR,
-            f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
+    """
+    Retrieve stock price data for a given ticker symbol using yfinance API.
+    """
+    try:
+        # Validate date format
+        datetime.strptime(start_date, "%Y-%m-%d")
+        datetime.strptime(end_date, "%Y-%m-%d")
+
+        # Create ticker object
+        ticker = yf.Ticker(symbol.upper())
+
+        # Add one day to end_date to make it inclusive
+        end_date_inclusive = pd.to_datetime(end_date) + pd.DateOffset(days=1)
+        end_date_str = end_date_inclusive.strftime("%Y-%m-%d")
+
+        # Fetch historical data for the specified date range
+        data = ticker.history(start=start_date, end=end_date_str)
+
+        # Check if data is empty
+        if data.empty:
+            return f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
+
+        # Remove timezone info from index for cleaner output
+        if data.index.tz is not None:
+            data.index = data.index.tz_localize(None)
+
+        # Reset index to make Date a column
+        data = data.reset_index()
+
+        # Format the Date column to match expected format
+        data["Date"] = data["Date"].dt.strftime("%Y-%m-%d")
+
+        # Round numerical values to 2 decimal places for cleaner display
+        numeric_columns = ["Open", "High", "Low", "Close", "Adj Close"]
+        for col in numeric_columns:
+            if col in data.columns:
+                data[col] = data[col].round(2)
+
+        # Set pandas display options to show the full DataFrame
+        with pd.option_context(
+            "display.max_rows", None, "display.max_columns", None, "display.width", None
+        ):
+            df_string = data.to_string(index=False)
+
+        return (
+            f"## Raw Market Data for {symbol} from {start_date} to {end_date}:\n\n"
+            + df_string
         )
-    )
 
-    if end_date > "2025-03-25":
-        raise Exception(
-            f"Get_YFin_Data: {end_date} is outside of the data range of 2015-01-01 to 2025-03-25"
-        )
-
-    # Extract just the date part for comparison
-    data["DateOnly"] = data["Date"].str[:10]
-
-    # Filter data between the start and end dates (inclusive)
-    filtered_data = data[
-        (data["DateOnly"] >= start_date) & (data["DateOnly"] <= end_date)
-    ]
-
-    # Drop the temporary column we created
-    filtered_data = filtered_data.drop("DateOnly", axis=1)
-
-    # remove the index from the dataframe
-    filtered_data = filtered_data.reset_index(drop=True)
-
-    return filtered_data
+    except Exception as e:
+        return f"Error retrieving data for {symbol}: {str(e)}"
 
 
 def get_stock_news_openai(ticker, curr_date):

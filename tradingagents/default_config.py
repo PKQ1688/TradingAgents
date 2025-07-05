@@ -1,9 +1,16 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 DEFAULT_CONFIG = {
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", "./results"),
-    "data_dir": "/Users/yluo/Documents/Code/ScAI/FR1-data",
+    "data_dir": os.path.join(
+        os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
+        "data",
+    ),  # Local data directory (now mainly for cached data)
     "data_cache_dir": os.path.join(
         os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
         "dataflows/data_cache",
@@ -18,5 +25,7 @@ DEFAULT_CONFIG = {
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
     # Tool settings
-    "online_tools": True,
+    "online_tools": True,  # Now primarily uses yfinance API for market data
+    # Language settings
+    "output_language": "english",  # Options: "english", "chinese"
 }

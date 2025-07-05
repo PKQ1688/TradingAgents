@@ -1,6 +1,7 @@
 from langchain_core.messages import AIMessage
 import time
 import json
+from tradingagents.dataflows.config import get_config
 
 
 def create_bear_researcher(llm, memory):
@@ -22,7 +23,16 @@ def create_bear_researcher(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+        # Get language setting from config
+        config = get_config()
+        output_language = config.get("output_language", "english")
+
+        # Set language instruction based on config
+        language_instruction = ""
+        if output_language == "chinese":
+            language_instruction = "请用中文回答。"
+
+        prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively. {language_instruction}
 
 Key points to focus on:
 
